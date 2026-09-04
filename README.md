@@ -166,23 +166,30 @@ The only outstanding step is one DNS record at GoDaddy.
 
    | Type | Name (host) | Value | TTL |
    | --- | --- | --- | --- |
-   | `CNAME` | `careers` | `cname.vercel-dns.com` | 600 (or default) |
+   | `CNAME` | `careers` | `56224f3524370faa.vercel-dns-016.com` | 600 (or default) |
 
-   Only if Vercel's Domains page tells you to use an A record instead (it does this for
-   apex domains, not subdomains), use:
+   That value is what `vercel domains verify careers.holigenixhealthcare.com` reported as the
+   **recommended** record for this project on 2026-09-04. The generic
+   `cname.vercel-dns.com` (which `notes.` and `www.` use) also works because the parent
+   domain is in the same Vercel team; either is fine, the project-specific one is preferred.
+
+   Only if Vercel's Domains page tells you to use A records instead (it does this for apex
+   domains, not subdomains), use:
 
    | Type | Name | Value |
    | --- | --- | --- |
-   | `A` | `careers` | `76.76.21.21` |
+   | `A` | `careers` | `216.150.1.1` |
+   | `A` | `careers` | `216.150.16.1` |
 
-   **Trust the values shown on the Vercel Domains page over this README** if they
-   differ — Vercel occasionally issues project-specific CNAME targets.
+   **Trust the values shown on the Vercel Domains page over this README** if they differ.
 3. In GoDaddy: **My Products → holigenixhealthcare.com → DNS → Add** the record above.
    Remove any existing `careers` record first.
 4. Back in Vercel, the domain flips to **Valid Configuration** once DNS propagates
    (usually minutes, up to 48h). Vercel issues the TLS certificate automatically.
-5. Set `NEXT_PUBLIC_SITE_URL=https://careers.holigenixhealthcare.com` in Vercel env
-   (it is also the default, so this is belt-and-braces) and redeploy.
+5. ~~Set `NEXT_PUBLIC_SITE_URL`~~ — already set to `https://careers.holigenixhealthcare.com`
+   in the Production environment (it is also the code default).
+6. Paste the GHL webhook URL into `GHL_RECRUIT_WEBHOOK` (see **Form → GoHighLevel**) and
+   redeploy. Until then the form shows success but leads are only logged, not sent.
 
 ### Linking from the main site
 
