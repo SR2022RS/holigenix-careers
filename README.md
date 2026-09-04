@@ -155,13 +155,14 @@ drift apart.
 
 ## DNS SETUP
 
-The domain `holigenixhealthcare.com` is registered at GoDaddy. Vercel needs one record
-for the `careers` subdomain.
+The domain `holigenixhealthcare.com` is registered at GoDaddy (nameservers stay at
+GoDaddy). The parent domain is already in the `sr2022rs-projects` Vercel team, and
+`careers.holigenixhealthcare.com` is already attached to the `holigenix-careers` project.
+The only outstanding step is one DNS record at GoDaddy.
 
-1. **First deploy** the project to Vercel (import the GitHub repo, framework preset:
-   Next.js, no build settings to change).
-2. In Vercel: **Project → Settings → Domains → Add** `careers.holigenixhealthcare.com`.
-   Vercel will show the record it wants. For a subdomain it is a CNAME:
+1. ~~First deploy~~ — done; the project is linked to `SR2022RS/holigenix-careers` and
+   every push to `main` deploys to production.
+2. ~~Add the domain in Vercel~~ — done. `notes.` and `www.` already use the same shape:
 
    | Type | Name (host) | Value | TTL |
    | --- | --- | --- | --- |
@@ -216,8 +217,14 @@ the main site but not on random third-party pages.
 | Light | `#e6f4f6` |
 | Ink | `#1a2b34` |
 
-Header is a navy→teal gradient. Mobile-first: most traffic is phones scanning a QR.
-All tap targets ≥ 44px; inputs are 17px so iOS doesn't zoom on focus.
+Header is a navy→teal gradient carrying the official Holigenix Healthcare lockup
+(`public/logo/holigenix-logo.png`, the same file www.holigenixhealthcare.com serves) on a
+white pill, mirroring the main site's `.logo-img` treatment. The favicon (`src/app/icon.png`)
+is the house-and-heart mark cropped from that lockup. Typefaces match the main site:
+**Fraunces** for headings, **Plus Jakarta Sans** for body, self-hosted at build by `next/font`.
+
+Mobile-first: most traffic is phones scanning a QR. All tap targets ≥ 44px; inputs are
+17px so iOS doesn't zoom on focus.
 
 ## Project layout
 

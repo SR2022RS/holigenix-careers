@@ -3,7 +3,9 @@ const BADGES = ["One-on-one care", "Weekly pay", "Flexible schedule"];
 export function Hero() {
   return (
     <section className="hero">
-      <h1>Join Our Nursing Team 💙</h1>
+      <h1>
+        Join Our Nursing <span className="nowrap">Team 💙</span>
+      </h1>
       <p>
         Thank you for your interest in joining our home healthcare team! If you&apos;re a
         nurse looking for one-on-one patient care, weekly pay, and a flexible schedule,
