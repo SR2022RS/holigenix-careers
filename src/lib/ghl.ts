@@ -27,12 +27,13 @@ export const LEAD_TAG = "careers-site-lead";
 /**
  * Existing contact custom fields in the Holigenix Healthcare sub-account
  * (rfZzMraSP58cwl2fJD5D), read from the location's custom-field list on
- * 2026-09-04. Keys are what GHL's upsert accepts in `customFields[].key`.
+ * 2026-09-04. GHL's upsert applies `customFields[].id` reliably; the
+ * `contact.<key>` form was silently ignored when tested.
  */
-const CUSTOM_FIELD_KEYS = {
-  titleRnLpn: "contact.title_rn_lpn", // "Title (RN / LPN):"
-  positionAppliedFor: "contact.position_applied_for",
-  referralSource: "contact.referral_source",
+const CUSTOM_FIELD_IDS = {
+  titleRnLpn: "Nncwg0ekTebjh4X5QKjC", // "Title (RN / LPN):"  key contact.title_rn_lpn
+  positionAppliedFor: "KyGLGt62HXsGVB0CWMqD", // "Position Applied For"  key contact.position_applied_for
+  referralSource: "LFZT5CUeAYnJXHj6r0MX", // "Referral Source:"  key contact.referral_source
 } as const;
 
 export function ghlWebhookUrl(): string {
@@ -87,9 +88,9 @@ export async function upsertLeadContact(payload: LeadPayload): Promise<boolean> 
     source: payload.source,
     tags: [LEAD_TAG, `src-${payload.source}`, `license-${licenseSlug(payload.license_type)}`],
     customFields: [
-      { key: CUSTOM_FIELD_KEYS.titleRnLpn, field_value: payload.license_type },
-      { key: CUSTOM_FIELD_KEYS.positionAppliedFor, field_value: "Nurse (careers site)" },
-      { key: CUSTOM_FIELD_KEYS.referralSource, field_value: payload.source },
+      { id: CUSTOM_FIELD_IDS.titleRnLpn, field_value: payload.license_type },
+      { id: CUSTOM_FIELD_IDS.positionAppliedFor, field_value: "Nurse (careers site)" },
+      { id: CUSTOM_FIELD_IDS.referralSource, field_value: payload.source },
     ],
   };
 
