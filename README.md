@@ -52,7 +52,7 @@ Other scripts:
 
 The form validates client-side (required fields, email format, 10-digit phone), then
 `fetch` POSTs to this site's own `/api/lead` route. That route re-validates, drops
-honeypot submissions, and forwards this JSON to the webhook in `GHL_RECRUIT_WEBHOOK`:
+honeypot submissions, and delivers the lead to GoHighLevel. The normalized lead is:
 
 ```json
 {
@@ -74,42 +74,65 @@ honeypot submissions, and forwards this JSON to the webhook in `GHL_RECRUIT_WEBH
 - `source` comes from the `?src=` query param (see **Lead-source tracking**).
 - `submitted_at` is an ISO-8601 UTC timestamp set in the browser.
 
-**Why a proxy instead of posting straight to GHL from the browser:** the webhook URL never
-ships in the client bundle, delivery does not depend on GHL answering CORS preflight from
-our domain, and failures show up in Vercel's function logs rather than only in a nurse's
-phone browser console. It is one small Node function; every page is still static.
+### Two delivery paths (configure at least one)
 
-**Fail soft.** If forwarding errors (network, non-2xx, webhook unset), the candidate still
-sees the success message. The failure is logged server-side (Vercel → Logs) and mirrored as
-a browser console warning. A nurse standing in a hospital hallway must never see a raw
-error or a stuck form.
+**Path 1 — Contacts API upsert (recommended, what production uses).** With
+`GHL_API_TOKEN` + `GHL_LOCATION_ID` set, `/api/lead` calls GHL's `POST /contacts/upsert`
+for the Holigenix Healthcare sub-account (`rfZzMraSP58cwl2fJD5D`). The contact gets:
 
-### Setting `GHL_RECRUIT_WEBHOOK` in Vercel
+| GHL field | Value |
+| --- | --- |
+| First / last name, email, phone (`+1…`), city, state, postal code | from the form |
+| `source` | the `?src=` token (`qr-choa`, `website`, …) |
+| Tags | `careers-site-lead`, `src-<source>`, `license-<rn\|lpn\|cna-pca\|nursing-student\|other>` |
+| Custom field "Title (RN / LPN):" | the license type as chosen |
+| Custom field "Position Applied For" | `Nurse (careers site)` |
+| Custom field "Referral Source:" | the `?src=` token |
 
-1. In GoHighLevel: **Automation → Workflows → (your recruiting workflow)**. Its trigger
-   must be **Inbound Webhook**. Copy the URL GHL shows on the trigger
-   (`https://services.leadconnectorhq.com/hooks/…/webhook-trigger/…`).
-2. In Vercel: **Project → Settings → Environment Variables → Add**
-   - Key: `GHL_RECRUIT_WEBHOOK`
-   - Value: the URL from step 1
-   - Environments: **Production** (and Preview if you want previews to post real leads;
-     otherwise leave Preview empty and the route logs instead of sending).
-   - It is server-only, so it is safe to leave unmarked as "sensitive" or mark it — either works.
-3. **Redeploy.** Vercel bakes env values into a deployment; changing the value does
+Because GHL de-dupes on phone/email, a nurse who submits twice updates one contact
+rather than creating two. **Build the follow-up automation as a GHL workflow triggered
+by "Contact Tag Added → `careers-site-lead`"** (or `src-qr-choa` for flyer-only
+follow-up). No webhook is needed.
+
+**Path 2 — Workflow Inbound Webhook (optional).** If `GHL_RECRUIT_WEBHOOK` is set, the
+raw JSON above is also POSTed there. Useful if you prefer to map fields inside a
+workflow. Both paths run when both are set.
+
+**Why a server route instead of posting straight to GHL from the browser:** the token and
+webhook URL never ship in the client bundle, delivery does not depend on GHL answering
+CORS preflight from our domain, and failures show up in Vercel's function logs rather than
+only in a nurse's phone browser console. It is one small Node function; every page is
+still static.
+
+**Fail soft.** If delivery errors (network, non-2xx, nothing configured), the candidate
+still sees the success message. The failure is logged server-side (Vercel → Logs) and
+mirrored as a browser console warning. A nurse standing in a hospital hallway must never
+see a raw error or a stuck form.
+
+### Setting the GHL variables in Vercel
+
+1. **Token.** In GoHighLevel, switch to the Holigenix Healthcare sub-account →
+   **Settings → Private Integrations → New**. Scopes: `contacts.write` (and
+   `contacts.readonly`). Copy the `pit-…` token.
+2. In Vercel: **Project → Settings → Environment Variables → Add**, environment
+   **Production**:
+   - `GHL_API_TOKEN` = the token (mark it Sensitive)
+   - `GHL_LOCATION_ID` = `rfZzMraSP58cwl2fJD5D`
+   - `GHL_RECRUIT_WEBHOOK` = (optional) a workflow's Inbound Webhook URL
+3. **Redeploy.** Vercel bakes env values into a deployment; changing a value does
    nothing until the next deploy (`vercel --prod`, or Deployments → Redeploy).
 
 Or from the CLI:
 
 ```bash
-vercel env add GHL_RECRUIT_WEBHOOK production
+vercel env add GHL_API_TOKEN production --sensitive
+vercel env add GHL_LOCATION_ID production
 vercel --prod
 ```
 
-`NEXT_PUBLIC_GHL_RECRUIT_WEBHOOK` is honoured as a fallback name, but prefer the
-server-only one.
-
-In GHL, map the incoming JSON keys above to contact fields in the workflow, and branch
-on `source` if you want QR leads tagged differently from website leads.
+Verify with one real submit from a phone, then check the contact in GHL carries the
+`careers-site-lead` tag. The route's response body says `"delivered": true` when at
+least one path succeeded.
 
 ## Lead-source tracking: the `?src=` convention
 
@@ -188,8 +211,8 @@ The only outstanding step is one DNS record at GoDaddy.
    (usually minutes, up to 48h). Vercel issues the TLS certificate automatically.
 5. ~~Set `NEXT_PUBLIC_SITE_URL`~~ — already set to `https://careers.holigenixhealthcare.com`
    in the Production environment (it is also the code default).
-6. Paste the GHL webhook URL into `GHL_RECRUIT_WEBHOOK` (see **Form → GoHighLevel**) and
-   redeploy. Until then the form shows success but leads are only logged, not sent.
+6. Make sure `GHL_API_TOKEN` + `GHL_LOCATION_ID` are set (see **Form → GoHighLevel**).
+   Without them the form still shows success but leads are only logged, not sent.
 
 ### Linking from the main site
 
@@ -254,7 +277,7 @@ src/
   lib/
     config.ts            SITE_URL, QR_TARGET_URL, webhook env, license types, copy constants
     lead.ts              payload shape, validation, ?src= parsing, fail-soft submit to /api/lead
-    ghl.ts               server-only forwarder to GHL_RECRUIT_WEBHOOK
+    ghl.ts               server-only delivery: Contacts API upsert + optional webhook
 scripts/
   generate-qr.ts         npm run qr
 public/qr/
