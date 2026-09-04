@@ -8,7 +8,7 @@ completely separate from CarePortal and the parent portal.
 
 > **Airgapped from PHI by design.** No Supabase, no auth, no database, no patient data,
 > no imports from any other Holigenix app, no `localStorage`/`sessionStorage`.
-> The only outbound call is a browser `fetch` POST to a GoHighLevel webhook.
+> The only outbound call is one server-side POST to a GoHighLevel webhook.
 
 ## Two entry points, one form, one pipeline
 
@@ -30,6 +30,7 @@ There is exactly one `<RecruitForm>` component ([src/components/recruit-form.tsx
 | `/apply` | Same page. Clean link target for the main site's Careers button; iframe-embeddable. |
 | `/thank-you` | Standalone success page (the form also shows success inline). |
 | `/scan` | Print-ready "Scan Me" flyer with the QR code. No header/footer. |
+| `POST /api/lead` | Tiny proxy: validates the form JSON and forwards it to GoHighLevel. |
 
 ## Local development
 
@@ -50,7 +51,8 @@ Other scripts:
 ## Form → GoHighLevel
 
 The form validates client-side (required fields, email format, 10-digit phone), then
-`fetch` POSTs this JSON to the webhook in `NEXT_PUBLIC_GHL_RECRUIT_WEBHOOK`:
+`fetch` POSTs to this site's own `/api/lead` route. That route re-validates, drops
+honeypot submissions, and forwards this JSON to the webhook in `GHL_RECRUIT_WEBHOOK`:
 
 ```json
 {
@@ -72,29 +74,39 @@ The form validates client-side (required fields, email format, 10-digit phone), 
 - `source` comes from the `?src=` query param (see **Lead-source tracking**).
 - `submitted_at` is an ISO-8601 UTC timestamp set in the browser.
 
-**Fail soft.** If the POST errors (network, CORS, non-2xx, webhook unset), the candidate
-still sees the success message. The failure is logged to the browser console only. A
-nurse standing in a hospital hallway must never see a raw error or a stuck form.
+**Why a proxy instead of posting straight to GHL from the browser:** the webhook URL never
+ships in the client bundle, delivery does not depend on GHL answering CORS preflight from
+our domain, and failures show up in Vercel's function logs rather than only in a nurse's
+phone browser console. It is one small Node function; every page is still static.
 
-### Setting `NEXT_PUBLIC_GHL_RECRUIT_WEBHOOK` in Vercel
+**Fail soft.** If forwarding errors (network, non-2xx, webhook unset), the candidate still
+sees the success message. The failure is logged server-side (Vercel → Logs) and mirrored as
+a browser console warning. A nurse standing in a hospital hallway must never see a raw
+error or a stuck form.
+
+### Setting `GHL_RECRUIT_WEBHOOK` in Vercel
 
 1. In GoHighLevel: **Automation → Workflows → (your recruiting workflow)**. Its trigger
    must be **Inbound Webhook**. Copy the URL GHL shows on the trigger
    (`https://services.leadconnectorhq.com/hooks/…/webhook-trigger/…`).
 2. In Vercel: **Project → Settings → Environment Variables → Add**
-   - Key: `NEXT_PUBLIC_GHL_RECRUIT_WEBHOOK`
+   - Key: `GHL_RECRUIT_WEBHOOK`
    - Value: the URL from step 1
    - Environments: **Production** (and Preview if you want previews to post real leads;
-     otherwise leave Preview empty and the form logs instead of sending).
-3. **Redeploy.** `NEXT_PUBLIC_` variables are inlined at build time; changing the value
-   does nothing until the next deploy.
+     otherwise leave Preview empty and the route logs instead of sending).
+   - It is server-only, so it is safe to leave unmarked as "sensitive" or mark it — either works.
+3. **Redeploy.** Vercel bakes env values into a deployment; changing the value does
+   nothing until the next deploy (`vercel --prod`, or Deployments → Redeploy).
 
 Or from the CLI:
 
 ```bash
-vercel env add NEXT_PUBLIC_GHL_RECRUIT_WEBHOOK production
+vercel env add GHL_RECRUIT_WEBHOOK production
 vercel --prod
 ```
+
+`NEXT_PUBLIC_GHL_RECRUIT_WEBHOOK` is honoured as a fallback name, but prefer the
+server-only one.
 
 In GHL, map the incoming JSON keys above to contact fields in the workflow, and branch
 on `source` if you want QR leads tagged differently from website leads.
@@ -220,13 +232,15 @@ src/
       apply/page.tsx     /apply
       thank-you/page.tsx /thank-you
     scan/page.tsx        /scan  (outside the chrome group on purpose)
+    api/lead/route.ts    POST /api/lead — validate + forward to GHL (server-only)
   components/
     recruit-form.tsx     THE form (client component; fetch POST, inline validation)
     landing.tsx          hero + form, shared by / and /apply
     hero.tsx, site-header.tsx, site-footer.tsx, success-message.tsx, print-button.tsx
   lib/
     config.ts            SITE_URL, QR_TARGET_URL, webhook env, license types, copy constants
-    lead.ts              payload shape, validation, ?src= parsing, fail-soft submit
+    lead.ts              payload shape, validation, ?src= parsing, fail-soft submit to /api/lead
+    ghl.ts               server-only forwarder to GHL_RECRUIT_WEBHOOK
 scripts/
   generate-qr.ts         npm run qr
 public/qr/

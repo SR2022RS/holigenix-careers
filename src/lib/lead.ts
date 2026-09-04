@@ -1,4 +1,4 @@
-import { DEFAULT_SOURCE, GHL_RECRUIT_WEBHOOK, LICENSE_TYPES } from "@/lib/config";
+import { DEFAULT_SOURCE, LEAD_ENDPOINT, LICENSE_TYPES } from "@/lib/config";
 
 export type LicenseType = (typeof LICENSE_TYPES)[number];
 
@@ -75,34 +75,28 @@ export function buildPayload(v: LeadFormValues, source: string): LeadPayload {
 }
 
 /**
- * POST the lead to the GoHighLevel inbound webhook.
+ * POST the lead to our own /api/lead route, which forwards it to GoHighLevel.
  *
  * FAIL SOFT: this never throws. The candidate always sees the success state;
  * a delivery problem is logged to the console and nowhere else. Returns
  * whether delivery appeared to succeed, for logging only.
  */
-export async function submitLead(payload: LeadPayload): Promise<boolean> {
-  if (!GHL_RECRUIT_WEBHOOK) {
-    console.warn(
-      "[careers] NEXT_PUBLIC_GHL_RECRUIT_WEBHOOK is not set — lead was NOT sent.",
-      payload,
-    );
-    return false;
-  }
+export async function submitLead(payload: LeadPayload, honeypot = ""): Promise<boolean> {
   try {
-    const res = await fetch(GHL_RECRUIT_WEBHOOK, {
+    const res = await fetch(LEAD_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(honeypot ? { ...payload, company: honeypot } : payload),
       keepalive: true, // survive the user navigating away mid-request
     });
     if (!res.ok) {
-      console.error(`[careers] GHL webhook responded ${res.status}`, await safeText(res));
+      console.error(`[careers] /api/lead responded ${res.status}`, await safeText(res));
       return false;
     }
-    return true;
+    const data = (await res.json().catch(() => ({}))) as { delivered?: boolean };
+    return data.delivered === true;
   } catch (err) {
-    console.error("[careers] GHL webhook POST failed", err);
+    console.error("[careers] /api/lead POST failed", err);
     return false;
   }
 }

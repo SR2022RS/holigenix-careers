@@ -34,6 +34,7 @@ export function RecruitForm() {
   const [errors, setErrors] = useState<LeadErrors>({});
   const [status, setStatus] = useState<Status>("idle");
   const [source, setSource] = useState(DEFAULT_SOURCE);
+  const [honeypot, setHoneypot] = useState("");
   const cardRef = useRef<HTMLElement>(null);
 
   // ?src= is only knowable in the browser; the page itself stays static.
@@ -62,7 +63,7 @@ export function RecruitForm() {
     }
 
     setStatus("submitting");
-    const delivered = await submitLead(buildPayload(values, source));
+    const delivered = await submitLead(buildPayload(values, source), honeypot);
     if (!delivered) console.warn("[careers] lead not delivered; success shown anyway (fail-soft).");
     setStatus("done");
     cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -90,6 +91,19 @@ export function RecruitForm() {
       </p>
 
       <form onSubmit={onSubmit} noValidate aria-busy={busy}>
+        {/* Honeypot: hidden from people, filled by bots. Server drops submits where it's set. */}
+        <div className="visually-hidden" aria-hidden="true">
+          <label htmlFor={`${id}-company`}>Company</label>
+          <input
+            id={`${id}-company`}
+            name="company"
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+            value={honeypot}
+            onChange={(e) => setHoneypot(e.target.value)}
+          />
+        </div>
         <Field id={`${id}-full_name`} label="Full name" error={errors.full_name}>
           <input
             id={`${id}-full_name`}

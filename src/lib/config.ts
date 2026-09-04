@@ -32,9 +32,8 @@ export const QR_SOURCE = "qr-choa";
  */
 export const QR_TARGET_URL = `${SITE_URL}/?src=${QR_SOURCE}`;
 
-/** GoHighLevel Workflow "Inbound Webhook" trigger URL. Empty = log only. */
-export const GHL_RECRUIT_WEBHOOK: string =
-  process.env.NEXT_PUBLIC_GHL_RECRUIT_WEBHOOK ?? "";
+/** Browser → our own tiny proxy route; the GHL URL stays server-side. */
+export const LEAD_ENDPOINT = "/api/lead";
 
 export const LICENSE_TYPES = [
   "RN — Registered Nurse",
