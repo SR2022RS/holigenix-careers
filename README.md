@@ -94,9 +94,18 @@ rather than creating two. **Build the follow-up automation as a GHL workflow tri
 by "Contact Tag Added → `careers-site-lead`"** (or `src-qr-choa` for flyer-only
 follow-up). No webhook is needed.
 
-**Path 2 — Workflow Inbound Webhook (optional).** If `GHL_RECRUIT_WEBHOOK` is set, the
-raw JSON above is also POSTed there. Useful if you prefer to map fields inside a
-workflow. Both paths run when both are set.
+**Path 2 — Workflow Inbound Webhook (live: admin email alert).** With `GHL_RECRUIT_WEBHOOK`
+set, the raw JSON above is also POSTed to the GHL workflow **"Nurse Lead Capture"**
+(Holigenix Healthcare sub-account → Automation → Workflows). That workflow, built with
+GHL's AI builder on 2026-09-04, is deliberately tiny: *Inbound Webhook → Internal
+notification email to admin@holigenixhealthcare.com* with the lead's details as
+`{{inboundWebhookRequest.*}}` merge fields. It does **not** create or tag the contact —
+Path 1 already did that, and the AI-generated contact step had to be removed because it
+mapped every field to `test@example.com`. Both paths run on every submit.
+
+Heads-up: GHL labels Inbound Webhook a **premium trigger** (a small per-execution charge).
+If that ever matters, delete `GHL_RECRUIT_WEBHOOK` from Vercel and rebuild the alert as a
+workflow triggered by *Contact Tag Added → `careers-site-lead`*, which Path 1 sets for free.
 
 **Why a server route instead of posting straight to GHL from the browser:** the token and
 webhook URL never ship in the client bundle, delivery does not depend on GHL answering
