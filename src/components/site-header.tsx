@@ -22,7 +22,12 @@ export function SiteHeader() {
             sizes="215px"
           />
         </Link>
-        <span className="header-pill">Now hiring nurses</span>
+        <div className="site-header__actions">
+          <span className="header-pill">Now hiring nurses</span>
+          <Link href="/sign-in" className="header-signin">
+            Applicant sign-in
+          </Link>
+        </div>
       </div>
     </header>
   );

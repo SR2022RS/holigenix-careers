@@ -4,7 +4,9 @@ import { useEffect, useId, useRef, useState } from "react";
 import { DEFAULT_SOURCE, LICENSE_TYPES } from "@/lib/config";
 import {
   buildPayload,
+  positionFor,
   readSource,
+  RESUME_MAX_BYTES,
   submitLead,
   validateLead,
   type LeadErrors,
@@ -35,6 +37,9 @@ export function RecruitForm() {
   const [status, setStatus] = useState<Status>("idle");
   const [source, setSource] = useState(DEFAULT_SOURCE);
   const [honeypot, setHoneypot] = useState("");
+  const [resume, setResume] = useState<File | null>(null);
+  const [resumeError, setResumeError] = useState<string | undefined>();
+  const [account, setAccount] = useState(false);
   const cardRef = useRef<HTMLElement>(null);
 
   // ?src= is only knowable in the browser; the page itself stays static.
@@ -63,8 +68,10 @@ export function RecruitForm() {
     }
 
     setStatus("submitting");
-    const delivered = await submitLead(buildPayload(values, source), honeypot);
-    if (!delivered) console.warn("[careers] lead not delivered; success shown anyway (fail-soft).");
+    const resumeBase64 = resume && positionFor(values.license_type) ? await toBase64(resume) : undefined;
+    const result = await submitLead(buildPayload(values, source), honeypot, resumeBase64);
+    if (!result.delivered) console.warn("[careers] lead not delivered; success shown anyway (fail-soft).");
+    setAccount(result.account);
     setStatus("done");
     cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -75,7 +82,7 @@ export function RecruitForm() {
         <h2 id={`${id}-done`} className="visually-hidden">
           Submission received
         </h2>
-        <SuccessMessage />
+        <SuccessMessage account={account} />
       </section>
     );
   }
@@ -216,6 +223,28 @@ export function RecruitForm() {
           </Field>
         </div>
 
+        {positionFor(values.license_type) ? (
+          <Field id={`${id}-resume`} label="Resume (PDF)" optional error={resumeError}>
+            <input
+              id={`${id}-resume`}
+              name="resume"
+              type="file"
+              accept="application/pdf"
+              onChange={(e) => {
+                const f = e.target.files?.[0] ?? null;
+                if (f && (f.type !== "application/pdf" || f.size > RESUME_MAX_BYTES)) {
+                  setResume(null);
+                  setResumeError("Please choose a PDF under 3 MB.");
+                  e.target.value = "";
+                  return;
+                }
+                setResumeError(undefined);
+                setResume(f);
+              }}
+            />
+          </Field>
+        ) : null}
+
         <button type="submit" className="btn" disabled={busy}>
           {busy ? "Sending…" : "Submit & Stay Connected"}
         </button>
@@ -251,4 +280,14 @@ function Field({
       )}
     </div>
   );
+}
+
+/** A File as base64 without the data: prefix. */
+function toBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1] ?? "");
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
