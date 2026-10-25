@@ -51,6 +51,22 @@ export function validateLead(v: LeadFormValues): LeadErrors {
   return errors;
 }
 
+/**
+ * Which hiring role a license type applies for (PRD-07). RN, LPN and CNA/PCA
+ * get an applicant account; a nursing student or "Other" stays a lead only,
+ * because there is no role to hire them into yet.
+ */
+export function positionFor(licenseType: string): "rn" | "lpn" | "pca" | null {
+  if (licenseType.startsWith("RN")) return "rn";
+  if (licenseType.startsWith("LPN")) return "lpn";
+  if (licenseType.startsWith("CNA")) return "pca";
+  return null;
+}
+
+/** Resumes: PDF only, 3 MB — the request carries it as base64 and must stay
+ *  under the hosting platform's 4.5 MB body limit. */
+export const RESUME_MAX_BYTES = 3 * 1024 * 1024;
+
 /** Read `?src=` from the current page URL. Safe to call only in the browser. */
 export function readSource(): string {
   if (typeof window === "undefined") return DEFAULT_SOURCE;
@@ -81,23 +97,30 @@ export function buildPayload(v: LeadFormValues, source: string): LeadPayload {
  * a delivery problem is logged to the console and nowhere else. Returns
  * whether delivery appeared to succeed, for logging only.
  */
-export async function submitLead(payload: LeadPayload, honeypot = ""): Promise<boolean> {
+export async function submitLead(
+  payload: LeadPayload,
+  honeypot = "",
+  resumeBase64?: string,
+): Promise<{ delivered: boolean; account: boolean }> {
   try {
+    const body = { ...payload, ...(honeypot ? { company: honeypot } : {}), ...(resumeBase64 ? { resume: resumeBase64 } : {}) };
     const res = await fetch(LEAD_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(honeypot ? { ...payload, company: honeypot } : payload),
-      keepalive: true, // survive the user navigating away mid-request
+      body: JSON.stringify(body),
+      // keepalive survives the user navigating away, but caps the body at
+      // 64 KB — so it is only used when no resume is attached.
+      keepalive: !resumeBase64,
     });
     if (!res.ok) {
       console.error(`[careers] /api/lead responded ${res.status}`, await safeText(res));
-      return false;
+      return { delivered: false, account: false };
     }
-    const data = (await res.json().catch(() => ({}))) as { delivered?: boolean };
-    return data.delivered === true;
+    const data = (await res.json().catch(() => ({}))) as { delivered?: boolean; account?: boolean };
+    return { delivered: data.delivered === true, account: data.account === true };
   } catch (err) {
     console.error("[careers] /api/lead POST failed", err);
-    return false;
+    return { delivered: false, account: false };
   }
 }
 

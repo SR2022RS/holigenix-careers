@@ -404,3 +404,54 @@ a {
     font-size: 18pt;
   }
 }
+
+/* ── Applicant accounts (PRD-07) ─────────────────────────────────────── */
+.card.account { max-width: 520px; margin: 0 auto; }
+.portal { max-width: 860px; margin: 0 auto; display: grid; gap: 1.25rem; }
+.portal__welcome {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 1rem;
+  background: var(--navy); color: var(--white); border-radius: var(--radius); padding: 1.5rem 1.75rem;
+  border-top: 5px solid var(--teal);
+}
+.portal__welcome h1 { font-family: var(--font-heading); font-size: clamp(1.6rem, 3vw, 2.2rem); margin: 0.2rem 0 0.4rem; }
+.portal__welcome p { margin: 0; opacity: 0.9; }
+.portal__eyebrow { font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.75 !important; }
+.portal__welcome .btn--secondary { background: transparent; color: var(--white); border-color: rgba(255,255,255,0.5); }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+.step {
+  display: flex; gap: 1rem; background: var(--white); border: 1px solid var(--line);
+  border-left: 5px solid var(--line); border-radius: var(--radius); padding: 1rem 1.25rem;
+}
+.step--done { border-left-color: #2e8540; }
+.step--your_turn { border-left-color: var(--amber); box-shadow: 0 6px 18px rgba(15, 43, 61, 0.08); }
+.step--with_us { border-left-color: var(--teal); }
+.step--later { opacity: 0.6; }
+.step__num {
+  flex: 0 0 2.25rem; height: 2.25rem; border-radius: 50%; display: grid; place-items: center;
+  font-weight: 700; background: var(--light); color: var(--navy);
+}
+.step--done .step__num { background: #e3f3e6; color: #2e8540; }
+.step--your_turn .step__num { background: #fdf0dc; color: #8a5a10; }
+.step__body { flex: 1; }
+.step__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.step__head h2 { font-size: 1.05rem; margin: 0; }
+.step__state { font-size: 0.8rem; font-weight: 600; border-radius: 999px; padding: 0.15rem 0.6rem; background: var(--light); color: var(--navy); }
+.step--your_turn .step__state { background: #fdf0dc; color: #8a5a10; }
+.step--done .step__state { background: #e3f3e6; color: #2e8540; }
+.step__body p { margin: 0.35rem 0 0; color: var(--muted); }
+.step__body form { margin-top: 0.75rem; }
+.docs { list-style: none; margin: 0.5rem 0 0; padding: 0; }
+.doc { display: flex; justify-content: space-between; gap: 1rem; padding: 0.65rem 0; border-top: 1px solid var(--line); }
+.doc:first-child { border-top: 0; }
+.doc__status { font-weight: 600; font-size: 0.9rem; }
+.doc--needed .doc__status { color: #8a5a10; }
+.doc--under_review .doc__status { color: var(--teal); }
+.doc--verified .doc__status { color: #2e8540; }
+.doc--not_needed .doc__status { color: var(--muted); }
+
+.site-header__actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; justify-content: flex-end; }
+.header-signin {
+  color: var(--white); font-weight: 600; font-size: 0.9rem; text-decoration: none;
+  border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 999px; padding: 0.35rem 0.85rem;
+}
+.header-signin:hover, .header-signin:focus-visible { background: rgba(255, 255, 255, 0.15); }
